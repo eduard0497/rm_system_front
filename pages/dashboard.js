@@ -654,17 +654,305 @@ const ManageSubscription = ({
 };
 
 const Employees = () => {
+  const [loading, setloading] = useState(false);
+  const [buttonLoading, setbuttonLoading] = useState(false);
+  const [employees, setemployees] = useState([]);
+  //
+  const [addEmployeeToggle, setaddEmployeeToggle] = useState(false);
+  //
+  const [employee_first_name, setemployee_first_name] = useState("");
+  const [employee_last_name, setemployee_last_name] = useState("");
+  const [employee_email_address, setemployee_email_address] = useState("");
+  const [employee_username, setemployee_username] = useState("");
+
+  const getEmployees = () => {
+    setloading(true);
+    fetch(`${SERVER_LINK}/get-employees`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data.status) {
+          console.log(data.msg);
+          setloading(false);
+        } else {
+          setemployees(data.employees);
+          setloading(false);
+        }
+      });
+  };
+
+  const addEmployee = () => {
+    if (
+      !employee_first_name ||
+      !employee_last_name ||
+      !employee_email_address ||
+      !employee_username
+    ) {
+      console.log("all fields are required");
+      return;
+    }
+    if (!validateEmail(employee_email_address)) {
+      console.log("valid email must be provided");
+      return;
+    }
+
+    if (employee_username.includes(" ")) {
+      console.log("username can not contain spaces");
+      return;
+    }
+    setbuttonLoading(true);
+    fetch(`${SERVER_LINK}/add-employee`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        employee_first_name,
+        employee_last_name,
+        employee_email_address: employee_email_address.toLowerCase(),
+        employee_username,
+      }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data.status) {
+          console.log(data.msg);
+          setbuttonLoading(false);
+        } else {
+          getEmployees();
+          setbuttonLoading(false);
+        }
+      });
+  };
+
+  useEffect(() => {
+    getEmployees();
+  }, []);
+
+  if (loading) {
+    return (
+      <div>
+        <h1>Loading...</h1>
+      </div>
+    );
+  }
+
+  // if (!employees.length) {
+  //   return (
+  //     <div>
+  //       <h1>No employees to display...</h1>
+  //       <br />
+  //       <button onClick={() => setaddEmployeeToggle(!addEmployeeToggle)}>
+  //         Add Employee
+  //       </button>
+  //     </div>
+  //   );
+  // }
+
   return (
     <div>
       <h1>Employees here</h1>
+      <br />
+      <button onClick={() => setaddEmployeeToggle(!addEmployeeToggle)}>
+        Add Employee
+      </button>
+      <br />
+      <br />
+      <table>
+        <thead>
+          <tr>
+            <th>First Name</th>
+            <th>Last Name</th>
+            <th>Email</th>
+            <th>Username</th>
+            <th>Is Active</th>
+          </tr>
+        </thead>
+        <tbody>
+          {addEmployeeToggle ? (
+            <tr>
+              <td>
+                <input
+                  type="text"
+                  placeholder="First Name"
+                  value={employee_first_name}
+                  onChange={(e) => setemployee_first_name(e.target.value)}
+                />
+              </td>
+              <td>
+                <input
+                  type="text"
+                  placeholder="Last Name"
+                  value={employee_last_name}
+                  onChange={(e) => setemployee_last_name(e.target.value)}
+                />
+              </td>
+              <td>
+                <input
+                  type="text"
+                  placeholder="Email Address"
+                  value={employee_email_address}
+                  onChange={(e) => setemployee_email_address(e.target.value)}
+                />
+              </td>
+              <td>
+                <input
+                  type="text"
+                  placeholder="Username"
+                  value={employee_username}
+                  onChange={(e) => setemployee_username(e.target.value)}
+                />
+              </td>
+              <td>
+                {buttonLoading ? (
+                  <button>Loading...</button>
+                ) : (
+                  <button onClick={addEmployee}>Confirm</button>
+                )}
+              </td>
+            </tr>
+          ) : null}
+          {employees.map((employee) => {
+            return (
+              <tr key={employee.employee_id}>
+                <td>{employee.employee_first_name}</td>
+                <td>{employee.employee_last_name}</td>
+                <td>{employee.employee_email_address}</td>
+                <td>{employee.employee_username}</td>
+                <td>{employee.employee_is_active.toString()}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 };
 
 const PaymentActivity = () => {
+  const [loading, setloading] = useState(false);
+  const [payments, setpayments] = useState([]);
+  const [filterItems, setfilterItems] = useState([]);
+  const [restNameFilter, setrestNameFilter] = useState("");
+
+  const getPaymentActivity = () => {
+    setloading(true);
+    fetch(`${SERVER_LINK}/get-payment-activity`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data.status) {
+          console.log(data.msg);
+          setloading(false);
+        } else {
+          let arrayOfFilters = [];
+          data.payments.map((payment) => {
+            if (!arrayOfFilters.includes(payment.restaurant_name)) {
+              arrayOfFilters.push(payment.restaurant_name);
+            }
+          });
+          setfilterItems(arrayOfFilters);
+          setpayments(data.payments);
+          setloading(false);
+        }
+      });
+  };
+
+  useEffect(() => {
+    getPaymentActivity();
+  }, []);
+
+  const renderFilteredPayments = () => {
+    if (!restNameFilter) return payments;
+    return payments.filter(
+      (payment) => payment.restaurant_name === restNameFilter
+    );
+  };
+
+  if (loading) {
+    return (
+      <div>
+        <h1>Loading...</h1>
+      </div>
+    );
+  }
+
+  if (!payments.length) {
+    return (
+      <div>
+        <h1>No payments to display...</h1>
+      </div>
+    );
+  }
+
   return (
     <div>
       <h1>Payment Activity here</h1>
+      <div className="row_space_around">
+        {filterItems.map((item, index) => {
+          return (
+            <button key={index} onClick={() => setrestNameFilter(item)}>
+              {item}
+            </button>
+          );
+        })}
+        <button onClick={() => setrestNameFilter("")}>Clear Filters</button>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Restaurant</th>
+            <th>Amount</th>
+            {/* <th>Payment Status</th> */}
+            <th>Name</th>
+            <th>Email Address</th>
+            <th>Card Details</th>
+            <th>Last 4</th>
+            <th>Subscription Ends</th>
+            <th>Transaction Date/Time</th>
+          </tr>
+        </thead>
+        <tbody>
+          {renderFilteredPayments().map((payment) => {
+            return (
+              <tr key={payment.transaction_id}>
+                <td>{payment.restaurant_name}</td>
+                <td>{"$" + (payment.amount_total / 100).toFixed(2)}</td>
+                {/* <td>{payment.payment_status.toUpperCase()}</td> */}
+                <td>{payment.provided_name}</td>
+                <td>{payment.provided_email}</td>
+                <td>
+                  {payment.card_brand.toUpperCase() +
+                    " " +
+                    payment.card_exp_month +
+                    "/" +
+                    payment.card_exp_year}
+                </td>
+                <td>{payment.card_last_four}</td>
+                <td>
+                  {new Date(payment.subscription_end_date).toLocaleDateString()}
+                </td>
+                <td>
+                  {new Date(payment.transaction_timestamp).toLocaleString()}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
+};
+
+const validateEmail = (email) => {
+  const regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
+  return regex.test(email);
 };

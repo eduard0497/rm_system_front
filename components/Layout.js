@@ -89,7 +89,7 @@ const Navbar = () => {
     <div className="border row_space_around">
       <h1 onClick={() => handleRouteChange("/")}>LOGO</h1>
       {isLoggedIn ? (
-        <div>
+        <div className="row_with_gap">
           <button onClick={() => handleRouteChange("/dashboard")}>
             Dashboard
           </button>
