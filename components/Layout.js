@@ -3,11 +3,22 @@ import { useRouter } from "next/router";
 import AuthContext from "./AuthContext";
 const SERVER_LINK = process.env.NEXT_PUBLIC_SERVER_LINK;
 
-function Layout({ children }) {
-  const { setIsLoggedIn } = useContext(AuthContext);
-  const [mainLoading, setmainLoading] = useState(false);
+const _routes_needed_authorization = ["/dashboard", "/payment-result"];
 
-  // const router = useRouter();
+function Layout({ children }) {
+  const { setIsLoggedIn, setaccount_type } = useContext(AuthContext);
+  const [mainLoading, setmainLoading] = useState(false);
+  const [displayNavbar, setdisplayNavbar] = useState(true);
+
+  const router = useRouter();
+
+  useEffect(() => {
+    if (router.pathname.includes("employee-login")) {
+      setdisplayNavbar(false);
+    } else {
+      setdisplayNavbar(true);
+    }
+  }, [router.pathname]);
 
   const validateToken = () => {
     setmainLoading(true);
@@ -19,13 +30,20 @@ function Layout({ children }) {
     })
       .then((res) => res.json())
       .then(async (data) => {
-        if (!data.status) {
+        if (data.kick_out || data.no_decoded_user) {
+          const response = await fetch("/api/clearCookies", {
+            method: "GET",
+          });
           setIsLoggedIn(false);
-          setmainLoading(false);
+          setaccount_type("");
+          if (_routes_needed_authorization.includes(router.pathname)) {
+            await router.push("/");
+          }
         } else {
           setIsLoggedIn(true);
-          setmainLoading(false);
+          setaccount_type(data.account_type);
         }
+        setmainLoading(false);
       })
       .catch((e) => {
         console.log("Error:");
@@ -48,7 +66,8 @@ function Layout({ children }) {
 
   return (
     <div>
-      <Navbar />
+      {displayNavbar && <Navbar />}
+
       {children}
       {/* <Footer /> */}
     </div>
@@ -58,7 +77,7 @@ function Layout({ children }) {
 export default Layout;
 
 const Navbar = () => {
-  const { isLoggedIn, setIsLoggedIn } = useContext(AuthContext);
+  const { isLoggedIn, setIsLoggedIn, account_type } = useContext(AuthContext);
   const router = useRouter();
 
   const handleRouteChange = (path) => {
@@ -90,9 +109,12 @@ const Navbar = () => {
       <h1 onClick={() => handleRouteChange("/")}>LOGO</h1>
       {isLoggedIn ? (
         <div className="row_with_gap">
-          <button onClick={() => handleRouteChange("/dashboard")}>
-            Dashboard
-          </button>
+          {account_type === "owner" && (
+            <button onClick={() => handleRouteChange("/dashboard")}>
+              Dashboard
+            </button>
+          )}
+
           <button onClick={clearAllCookies}>Log Out</button>
         </div>
       ) : (

@@ -1,3 +1,7 @@
+:root {
+  --gap_10: 10px;
+}
+
 *,
 html,
 body {
@@ -20,6 +24,7 @@ button {
   padding: 5px;
   cursor: pointer;
   border-radius: 5px;
+  text-wrap: nowrap;
 }
 
 table {
@@ -30,8 +35,9 @@ table {
 th,
 td {
   border: 1px solid rgb(11, 0, 170);
-  padding: 8px;
+  padding: 5px;
   text-align: left;
+  text-wrap: nowrap;
 }
 
 pre {
@@ -49,7 +55,7 @@ pre {
   display: flex;
   align-items: center;
   justify-content: space-around;
-  gap: 10px;
+  gap: var(--gap_10);
 }
 
 .row_space_between {
@@ -62,20 +68,20 @@ pre {
 .row_with_gap {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--gap_10);
 }
 
 .row_with_wrap {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--gap_10);
   flex-wrap: wrap;
 }
 
 .col_gap {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--gap_10);
 }
 
 .col_no_gap {
@@ -115,15 +121,16 @@ pre {
   justify-content: center;
   background-color: rgba(0, 0, 0, 0.5);
   color: white;
+  padding: var(--gap_10);
 }
 
 .modal_box {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: var(--gap_10);
   width: 600px;
-  border: 1px solid red;
   padding: 40px;
+  border: 1px solid red;
   background-color: blue;
 }
 

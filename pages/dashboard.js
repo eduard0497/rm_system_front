@@ -50,7 +50,7 @@ function Dashboard() {
 export default Dashboard;
 
 const Restaurants = ({ setmodal, setmessage }) => {
-  const { setIsLoggedIn } = useContext(AuthContext);
+  const { setIsLoggedIn, setaccount_type } = useContext(AuthContext);
 
   const router = useRouter();
   const [restaurants, setrestaurants] = useState([]);
@@ -71,10 +71,7 @@ const Restaurants = ({ setmodal, setmessage }) => {
     })
       .then((res) => res.json())
       .then(async (data) => {
-        if (data.kick_out) {
-          setIsLoggedIn(false);
-          await router.push("/");
-        } else if (!data.status) {
+        if (!data.status) {
           setloading(false);
           setmessage(data.msg);
           setmodal(true);
@@ -126,6 +123,7 @@ const Restaurants = ({ setmodal, setmessage }) => {
         <button onClick={() => setaddRestaurantToggle(!addRestaurantToggle)}>
           Add Restaurant
         </button>
+        <button>Visit Restaurants Config Page</button>
       </div>
       <br />
       {addRestaurantToggle ? (
@@ -496,7 +494,6 @@ const SingleRestaurant = ({ restaurant, findAndSwap }) => {
             </div>
             <pre>{"Menu Note: " + restaurant.restaurant_menu_note}</pre>
             <div className="row_space_around">
-              <button>Visit Restaurant Page</button>
               <button>Employees who have access</button>
               <button onClick={() => settoggle(!toggle)}>
                 Edit restaurant details
@@ -655,7 +652,7 @@ const ManageSubscription = ({
 
 const Employees = () => {
   const [loading, setloading] = useState(false);
-  const [buttonLoading, setbuttonLoading] = useState(false);
+  const [addEmplButtonLoading, setaddEmplButtonLoading] = useState(false);
   const [employees, setemployees] = useState([]);
   //
   const [addEmployeeToggle, setaddEmployeeToggle] = useState(false);
@@ -704,7 +701,7 @@ const Employees = () => {
       console.log("username can not contain spaces");
       return;
     }
-    setbuttonLoading(true);
+    setaddEmplButtonLoading(true);
     fetch(`${SERVER_LINK}/add-employee`, {
       method: "POST",
       credentials: "include",
@@ -720,10 +717,11 @@ const Employees = () => {
       .then((data) => {
         if (!data.status) {
           console.log(data.msg);
-          setbuttonLoading(false);
+          setaddEmplButtonLoading(false);
         } else {
+          setaddEmplButtonLoading(false);
           getEmployees();
-          setbuttonLoading(false);
+          setaddEmployeeToggle(false);
         }
       });
   };
@@ -761,7 +759,7 @@ const Employees = () => {
       </button>
       <br />
       <br />
-      <table>
+      <table className="width_700">
         <thead>
           <tr>
             <th>First Name</th>
@@ -769,6 +767,7 @@ const Employees = () => {
             <th>Email</th>
             <th>Username</th>
             <th>Is Active</th>
+            <th>Manage Buttons</th>
           </tr>
         </thead>
         <tbody>
@@ -806,8 +805,9 @@ const Employees = () => {
                   onChange={(e) => setemployee_username(e.target.value)}
                 />
               </td>
+              <td></td>
               <td>
-                {buttonLoading ? (
+                {addEmplButtonLoading ? (
                   <button>Loading...</button>
                 ) : (
                   <button onClick={addEmployee}>Confirm</button>
@@ -817,18 +817,148 @@ const Employees = () => {
           ) : null}
           {employees.map((employee) => {
             return (
-              <tr key={employee.employee_id}>
-                <td>{employee.employee_first_name}</td>
-                <td>{employee.employee_last_name}</td>
-                <td>{employee.employee_email_address}</td>
-                <td>{employee.employee_username}</td>
-                <td>{employee.employee_is_active.toString()}</td>
-              </tr>
+              <SingleEmployee
+                key={employee.employee_id}
+                employee={employee}
+                getEmployees={getEmployees}
+              />
             );
           })}
         </tbody>
       </table>
     </div>
+  );
+};
+
+const SingleEmployee = ({ employee, getEmployees }) => {
+  const [emailLoginInstrLoading, setemailLoginInstrLoading] = useState(false);
+  const [editEmployeeDetailsLoading, seteditEmployeeDetailsLoading] =
+    useState(false);
+  const [employeeDetailsToggle, setemployeeDetailsToggle] = useState(false);
+
+  //
+  const [employee_first_name, setemployee_first_name] = useState(
+    employee.employee_first_name
+  );
+  const [employee_last_name, setemployee_last_name] = useState(
+    employee.employee_last_name
+  );
+  const [employee_is_active, setemployee_is_active] = useState(
+    employee.employee_is_active
+  );
+
+  const emailLoginInstructions = (employee_id) => {
+    if (!employee_id) return;
+    setemailLoginInstrLoading(true);
+    fetch(`${SERVER_LINK}/email-login-instructions`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        employee_id,
+      }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        console.log(data);
+        setemailLoginInstrLoading(false);
+      });
+  };
+
+  const editEmployeeDetails = (employee_id) => {
+    if (!employee_first_name || !employee_last_name || !employee_id) return;
+    seteditEmployeeDetailsLoading(true);
+    fetch(`${SERVER_LINK}/edit-employee-details`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        employee_id,
+        employee_first_name,
+        employee_last_name,
+        employee_is_active,
+      }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data.status) {
+          console.log(data.msg);
+          seteditEmployeeDetailsLoading(false);
+        } else {
+          seteditEmployeeDetailsLoading(false);
+
+          getEmployees();
+        }
+      });
+  };
+
+  if (!employee.employee_id) return;
+
+  return (
+    <tr>
+      {employeeDetailsToggle ? (
+        <>
+          <td>
+            <input
+              type="text"
+              placeholder="First Name"
+              value={employee_first_name}
+              onChange={(e) => setemployee_first_name(e.target.value)}
+            />
+          </td>
+          <td>
+            <input
+              type="text"
+              placeholder="First Name"
+              value={employee_last_name}
+              onChange={(e) => setemployee_last_name(e.target.value)}
+            />
+          </td>
+          <td>{employee.employee_email_address}</td>
+          <td>{employee.employee_username}</td>
+          <td>
+            <select
+              value={employee_is_active}
+              onChange={(e) => setemployee_is_active(e.target.value)}
+            >
+              <option value={false}>Deactivate</option>
+              <option value={true}>Activate</option>
+            </select>
+          </td>
+          <td>
+            {editEmployeeDetailsLoading ? (
+              <button>Loading...</button>
+            ) : (
+              <button onClick={() => editEmployeeDetails(employee.employee_id)}>
+                Save
+              </button>
+            )}
+          </td>
+        </>
+      ) : (
+        <>
+          <td>{employee.employee_first_name}</td>
+          <td>{employee.employee_last_name}</td>
+          <td>{employee.employee_email_address}</td>
+          <td>{employee.employee_username}</td>
+          <td>{employee.employee_is_active.toString()}</td>
+          <td className="row_with_gap">
+            <button onClick={() => setemployeeDetailsToggle(true)}>
+              Edit Employee Details
+            </button>
+            {emailLoginInstrLoading ? (
+              <button>Loading...</button>
+            ) : (
+              <button
+                onClick={() => emailLoginInstructions(employee.employee_id)}
+              >
+                Email Login Instructions
+              </button>
+            )}
+          </td>
+        </>
+      )}
+    </tr>
   );
 };
 

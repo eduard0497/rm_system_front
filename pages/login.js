@@ -17,7 +17,7 @@ function Login() {
 export default Login;
 
 const OwnerLogin = () => {
-  const { setIsLoggedIn } = useContext(AuthContext);
+  const { setIsLoggedIn, setaccount_type } = useContext(AuthContext);
   const router = useRouter();
   const [modal, setmodal] = useState(false);
   const [message, setmessage] = useState("");
@@ -70,6 +70,7 @@ const OwnerLogin = () => {
             }
             setloading(false);
             setIsLoggedIn(true);
+            setaccount_type("owner");
             await router.push("/dashboard");
           });
       })
