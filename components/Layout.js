@@ -21,6 +21,7 @@ function Layout({ children }) {
   }, [router.pathname]);
 
   const validateToken = () => {
+    console.log("Validating user...");
     setmainLoading(true);
     fetch(`${SERVER_LINK}/validate-token`, {
       method: "POST",
@@ -36,14 +37,15 @@ function Layout({ children }) {
           });
           setIsLoggedIn(false);
           setaccount_type("");
+          setmainLoading(false);
           if (_routes_needed_authorization.includes(router.pathname)) {
             await router.push("/");
           }
         } else {
           setIsLoggedIn(true);
           setaccount_type(data.account_type);
+          setmainLoading(false);
         }
-        setmainLoading(false);
       })
       .catch((e) => {
         console.log("Error:");

@@ -96,7 +96,7 @@ const OwnerLogin = () => {
         setmessage={setmessage}
       />
       <div className="col_gap width_600">
-        <h1>Owner Register</h1>
+        <h1>Login</h1>
 
         <input
           type="text"
@@ -222,7 +222,7 @@ const OwnerRegister = () => {
         setmessage={setmessage}
       />
       <div className="col_gap width_600">
-        <h1>Owner Register</h1>
+        <h1>Register</h1>
         <input
           type="text"
           placeholder="First Name"

@@ -10,6 +10,7 @@ export default function handler(req, res) {
         secure: process.env.NODE_ENV !== "development",
         sameSite: "strict",
         maxAge: 60 * 60 * 24 * 3, // 1 week
+        // maxAge: 10, // 1 week
         path: "/",
       });
 

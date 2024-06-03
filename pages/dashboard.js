@@ -370,6 +370,8 @@ const SingleRestaurant = ({ restaurant, findAndSwap }) => {
 
   const [manageSubscriptionRestId, setmanageSubscriptionRestId] =
     useState(null);
+  const [manageRestaurantAccessId, setmanageRestaurantAccessId] =
+    useState(null);
 
   if (!restaurant.restaurant_id) return;
 
@@ -379,6 +381,10 @@ const SingleRestaurant = ({ restaurant, findAndSwap }) => {
         manageSubscriptionRestId={manageSubscriptionRestId}
         setmanageSubscriptionRestId={setmanageSubscriptionRestId}
         findAndSwap={findAndSwap}
+      />
+      <ManageEmployeeRestaurantAccess
+        manageRestaurantAccessId={manageRestaurantAccessId}
+        setmanageRestaurantAccessId={setmanageRestaurantAccessId}
       />
       <div className="col_gap border width_700">
         {toggle ? (
@@ -494,7 +500,13 @@ const SingleRestaurant = ({ restaurant, findAndSwap }) => {
             </div>
             <pre>{"Menu Note: " + restaurant.restaurant_menu_note}</pre>
             <div className="row_space_around">
-              <button>Employees who have access</button>
+              <button
+                onClick={() =>
+                  setmanageRestaurantAccessId(restaurant.restaurant_id)
+                }
+              >
+                Employees who have access
+              </button>
               <button onClick={() => settoggle(!toggle)}>
                 Edit restaurant details
               </button>
@@ -510,6 +522,174 @@ const SingleRestaurant = ({ restaurant, findAndSwap }) => {
         )}
       </div>
     </>
+  );
+};
+
+const ManageEmployeeRestaurantAccess = ({
+  manageRestaurantAccessId,
+  setmanageRestaurantAccessId,
+}) => {
+  const [modalErrorMessage, setmodalErrorMessage] = useState("");
+  const [mainLoading, setmainLoading] = useState(false);
+  const [buttonLoading, setbuttonLoading] = useState(false);
+  const [revokeButtonLoading, setrevokeButtonLoading] = useState(false);
+  const [employeesWithAccess, setemployeesWithAccess] = useState([]);
+  const [employeesWithOUTAccess, setemployeesWithOUTAccess] = useState([]);
+  const [employeeToGiveAccess, setemployeeToGiveAccess] = useState("");
+
+  const filterEmployees = (allEmployees) => {
+    let emplWithAccess = [];
+    let emplWithOUTAccess = [];
+
+    allEmployees.forEach((employee) => {
+      if (employee.employee_access_id === null) {
+        emplWithOUTAccess.push(employee);
+      } else {
+        emplWithAccess.push(employee);
+      }
+    });
+
+    setemployeesWithAccess(emplWithAccess);
+    setemployeesWithOUTAccess(emplWithOUTAccess);
+  };
+
+  const getAllEmployees = () => {
+    if (!manageRestaurantAccessId) return;
+    setmainLoading(true);
+    fetch(`${SERVER_LINK}/get-restaurant-employee-accesses`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        restaurant_id: manageRestaurantAccessId,
+      }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data.status) {
+          setmodalErrorMessage(data.message);
+          setmainLoading(false);
+        } else {
+          filterEmployees(data.employeesWithAccessIDs);
+          setmainLoading(false);
+        }
+      });
+  };
+
+  useEffect(() => {
+    getAllEmployees();
+  }, [manageRestaurantAccessId]);
+
+  const giveAccessToEmployee = () => {
+    if (!employeeToGiveAccess) return;
+    setbuttonLoading(true);
+    fetch(`${SERVER_LINK}/give-access-to-employee`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        restaurant_id: manageRestaurantAccessId,
+        employee_id: parseInt(employeeToGiveAccess),
+      }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data.status) {
+          setmodalErrorMessage(data.msg);
+          setbuttonLoading(false);
+        } else {
+          setbuttonLoading(false);
+          setemployeeToGiveAccess("");
+          getAllEmployees();
+        }
+      });
+  };
+
+  const revokeAccess = (access_id) => {
+    if (!access_id) return;
+    setrevokeButtonLoading(true);
+    fetch(`${SERVER_LINK}/revoke-employee-access`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        access_id,
+      }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data.status) {
+          setmodalErrorMessage(data.msg);
+          setrevokeButtonLoading(false);
+        } else {
+          setrevokeButtonLoading(false);
+          getAllEmployees();
+        }
+      });
+  };
+
+  if (!manageRestaurantAccessId) return;
+  if (mainLoading) {
+    return (
+      <div className="modal_background">
+        <div className="modal_box">
+          <h1>mainLoading...</h1>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="modal_background">
+      <div className="modal_box">
+        <div className="row_space_around">
+          <select
+            value={employeeToGiveAccess}
+            onChange={(e) => setemployeeToGiveAccess(e.target.value)}
+          >
+            <option value={""}>Select Employee</option>
+            {employeesWithOUTAccess.map((option) => (
+              <option key={option.employee_id} value={option.employee_id}>
+                {option.employee_first_name + " " + option.employee_last_name}
+              </option>
+            ))}
+          </select>
+          {buttonLoading ? (
+            <button>Loading</button>
+          ) : (
+            <>
+              {employeeToGiveAccess && (
+                <button onClick={giveAccessToEmployee}>Give Access</button>
+              )}
+            </>
+          )}
+        </div>
+        <div className="col_gap">
+          {employeesWithAccess.map((employee) => {
+            return (
+              <div key={employee.employee_id} className="row_space_around">
+                <p>
+                  {employee.employee_first_name +
+                    " " +
+                    employee.employee_last_name}
+                </p>
+                <p>{employee.employee_username}</p>
+                {revokeButtonLoading ? (
+                  <button>Loading...</button>
+                ) : (
+                  <button
+                    onClick={() => revokeAccess(employee.employee_access_id)}
+                  >
+                    -
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <button onClick={() => setmanageRestaurantAccessId(null)}>CLOSE</button>
+        {modalErrorMessage && <p>{modalErrorMessage}</p>}
+      </div>
+    </div>
   );
 };
 
@@ -672,6 +852,7 @@ const Employees = () => {
     })
       .then((res) => res.json())
       .then((data) => {
+        console.log(data);
         if (!data.status) {
           console.log(data.msg);
           setloading(false);
@@ -843,6 +1024,9 @@ const SingleEmployee = ({ employee, getEmployees }) => {
   const [employee_last_name, setemployee_last_name] = useState(
     employee.employee_last_name
   );
+  const [employee_email_address, setemployee_email_address] = useState(
+    employee.employee_email_address
+  );
   const [employee_is_active, setemployee_is_active] = useState(
     employee.employee_is_active
   );
@@ -866,7 +1050,14 @@ const SingleEmployee = ({ employee, getEmployees }) => {
   };
 
   const editEmployeeDetails = (employee_id) => {
-    if (!employee_first_name || !employee_last_name || !employee_id) return;
+    if (
+      !employee_first_name ||
+      !employee_last_name ||
+      !employee_id ||
+      !employee_email_address
+    )
+      return;
+    if (!validateEmail(employee_email_address)) return;
     seteditEmployeeDetailsLoading(true);
     fetch(`${SERVER_LINK}/edit-employee-details`, {
       method: "POST",
@@ -876,6 +1067,7 @@ const SingleEmployee = ({ employee, getEmployees }) => {
         employee_id,
         employee_first_name,
         employee_last_name,
+        employee_email_address: employee_email_address.toLowerCase(),
         employee_is_active,
       }),
     })
@@ -909,12 +1101,19 @@ const SingleEmployee = ({ employee, getEmployees }) => {
           <td>
             <input
               type="text"
-              placeholder="First Name"
+              placeholder="Last Name"
               value={employee_last_name}
               onChange={(e) => setemployee_last_name(e.target.value)}
             />
           </td>
-          <td>{employee.employee_email_address}</td>
+          <td>
+            <input
+              type="text"
+              placeholder="Email Address"
+              value={employee_email_address}
+              onChange={(e) => setemployee_email_address(e.target.value)}
+            />
+          </td>
           <td>{employee.employee_username}</td>
           <td>
             <select
