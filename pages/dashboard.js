@@ -2,10 +2,14 @@ import React, { useState, useEffect, useContext } from "react";
 import AuthContext from "@/components/AuthContext";
 import { useRouter } from "next/router";
 import Modal from "@/components/Modal";
-const SERVER_LINK = process.env.NEXT_PUBLIC_SERVER_LINK;
+import { postFetch } from "@/reusableFuncs/postFetch";
+import { putFetch } from "@/reusableFuncs/putFetch";
+import { validateEmail } from "@/reusableFuncs/validateEmail";
 
 function Dashboard() {
   const [currentView, setcurrentView] = useState("");
+  const { account_type } = useContext(AuthContext);
+
   //
   const [modal, setmodal] = useState(false);
   const [message, setmessage] = useState("");
@@ -20,6 +24,10 @@ function Dashboard() {
         return <Restaurants setmodal={setmodal} setmessage={setmessage} />;
     }
   };
+
+  if (account_type !== "owner") {
+    return;
+  }
 
   return (
     <>
@@ -50,8 +58,6 @@ function Dashboard() {
 export default Dashboard;
 
 const Restaurants = ({ setmodal, setmessage }) => {
-  const { setIsLoggedIn, setaccount_type } = useContext(AuthContext);
-
   const router = useRouter();
   const [restaurants, setrestaurants] = useState([]);
   const [loading, setloading] = useState(false);
@@ -61,25 +67,16 @@ const Restaurants = ({ setmodal, setmessage }) => {
     return restaurants.sort((a, b) => a.restaurant_id - b.restaurant_id);
   };
 
-  const getRestaurants = () => {
+  const getRestaurants = async () => {
     setloading(true);
-    fetch(`${SERVER_LINK}/get-restaurants`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
-    })
-      .then((res) => res.json())
-      .then(async (data) => {
-        if (!data.status) {
-          setloading(false);
-          setmessage(data.msg);
-          setmodal(true);
-        } else {
-          setrestaurants(sortRestaurants(data.restaurants));
-          setloading(false);
-        }
-      });
+    let data = await postFetch("get-restaurants", {});
+    if (!data.status) {
+      setmessage(data.msg);
+      setmodal(true);
+    } else {
+      setrestaurants(sortRestaurants(data.restaurants));
+    }
+    setloading(false);
   };
 
   const addRestaurantToList = (restaurantAsObject) => {
@@ -123,7 +120,9 @@ const Restaurants = ({ setmodal, setmessage }) => {
         <button onClick={() => setaddRestaurantToggle(!addRestaurantToggle)}>
           Add Restaurant
         </button>
-        <button>Visit Restaurants Config Page</button>
+        <button onClick={() => router.push("/manage-restaurants")}>
+          Visit Restaurants Config Page
+        </button>
       </div>
       <br />
       {addRestaurantToggle ? (
@@ -181,41 +180,32 @@ const AddRestaurantForm = ({ addRestaurantToList, setaddRestaurantToggle }) => {
     setformMessage("");
   };
 
-  const registerRestaurant = () => {
+  const registerRestaurant = async () => {
     if (!restaurant_name) {
       setformMessage("Restaurant name is required");
       return;
     }
     setloading(true);
-    fetch(`${SERVER_LINK}/register-restaurant`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        restaurant_name,
-        restaurant_address_street,
-        restaurant_address_unit,
-        restaurant_address_city,
-        restaurant_address_state,
-        restaurant_address_zip,
-        restaurant_phone_number,
-        restaurant_fax_number,
-        restaurant_email_address,
-        restaurant_menu_note,
-      }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (!data.status) {
-          setformMessage(data.msg);
-          setloading(false);
-        } else {
-          addRestaurantToList(data.restaurantAsObject);
-          clearFields();
-          setaddRestaurantToggle(false);
-          setloading(false);
-        }
-      });
+    let data = await postFetch("register-restaurant", {
+      restaurant_name,
+      restaurant_address_street,
+      restaurant_address_unit,
+      restaurant_address_city,
+      restaurant_address_state,
+      restaurant_address_zip,
+      restaurant_phone_number,
+      restaurant_fax_number,
+      restaurant_email_address,
+      restaurant_menu_note,
+    });
+    if (!data.status) {
+      setformMessage(data.msg);
+    } else {
+      addRestaurantToList(data.restaurantAsObject);
+      clearFields();
+      setaddRestaurantToggle(false);
+    }
+    setloading(false);
   };
 
   return (
@@ -330,42 +320,33 @@ const SingleRestaurant = ({ restaurant, findAndSwap }) => {
     restaurant.restaurant_menu_note
   );
 
-  const editRestaurantDetails = () => {
+  const editRestaurantDetails = async () => {
     if (!restaurant.restaurant_id) return;
     if (!restaurant_name) {
       setformMessage("The restaurant name may not be empty");
       return;
     }
     setloading(true);
-    fetch(`${SERVER_LINK}/register-restaurant`, {
-      method: "PUT",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        restaurant_id: restaurant.restaurant_id,
-        restaurant_name,
-        restaurant_address_street,
-        restaurant_address_unit,
-        restaurant_address_city,
-        restaurant_address_state,
-        restaurant_address_zip,
-        restaurant_phone_number,
-        restaurant_fax_number,
-        restaurant_email_address,
-        restaurant_menu_note,
-      }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (!data.status) {
-          setformMessage(data.msg);
-          setloading(false);
-        } else {
-          findAndSwap(data.restaurantAsObject);
-          setloading(false);
-          settoggle(!toggle);
-        }
-      });
+    let data = await putFetch("register-restaurant", {
+      restaurant_id: restaurant.restaurant_id,
+      restaurant_name,
+      restaurant_address_street,
+      restaurant_address_unit,
+      restaurant_address_city,
+      restaurant_address_state,
+      restaurant_address_zip,
+      restaurant_phone_number,
+      restaurant_fax_number,
+      restaurant_email_address,
+      restaurant_menu_note,
+    });
+    if (!data.status) {
+      setformMessage(data.msg);
+    } else {
+      findAndSwap(data.restaurantAsObject);
+      settoggle(!toggle);
+    }
+    setloading(false);
   };
 
   const [manageSubscriptionRestId, setmanageSubscriptionRestId] =
@@ -553,79 +534,53 @@ const ManageEmployeeRestaurantAccess = ({
     setemployeesWithOUTAccess(emplWithOUTAccess);
   };
 
-  const getAllEmployees = () => {
+  const getAllEmployees = async () => {
     if (!manageRestaurantAccessId) return;
     setmainLoading(true);
-    fetch(`${SERVER_LINK}/get-restaurant-employee-accesses`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        restaurant_id: manageRestaurantAccessId,
-      }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (!data.status) {
-          setmodalErrorMessage(data.message);
-          setmainLoading(false);
-        } else {
-          filterEmployees(data.employeesWithAccessIDs);
-          setmainLoading(false);
-        }
-      });
+    let data = await postFetch("get-restaurant-employee-accesses", {
+      restaurant_id: manageRestaurantAccessId,
+    });
+
+    if (!data.status) {
+      setmodalErrorMessage(data.message);
+    } else {
+      filterEmployees(data.employeesWithAccessIDs);
+    }
+    setmainLoading(false);
   };
 
   useEffect(() => {
     getAllEmployees();
   }, [manageRestaurantAccessId]);
 
-  const giveAccessToEmployee = () => {
+  const giveAccessToEmployee = async () => {
     if (!employeeToGiveAccess) return;
     setbuttonLoading(true);
-    fetch(`${SERVER_LINK}/give-access-to-employee`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        restaurant_id: manageRestaurantAccessId,
-        employee_id: parseInt(employeeToGiveAccess),
-      }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (!data.status) {
-          setmodalErrorMessage(data.msg);
-          setbuttonLoading(false);
-        } else {
-          setbuttonLoading(false);
-          setemployeeToGiveAccess("");
-          getAllEmployees();
-        }
-      });
+    let data = await postFetch("give-access-to-employee", {
+      restaurant_id: manageRestaurantAccessId,
+      employee_id: parseInt(employeeToGiveAccess),
+    });
+    if (!data.status) {
+      setmodalErrorMessage(data.msg);
+    } else {
+      setemployeeToGiveAccess("");
+      getAllEmployees();
+    }
+    setbuttonLoading(false);
   };
 
-  const revokeAccess = (access_id) => {
+  const revokeAccess = async (access_id) => {
     if (!access_id) return;
     setrevokeButtonLoading(true);
-    fetch(`${SERVER_LINK}/revoke-employee-access`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        access_id,
-      }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (!data.status) {
-          setmodalErrorMessage(data.msg);
-          setrevokeButtonLoading(false);
-        } else {
-          setrevokeButtonLoading(false);
-          getAllEmployees();
-        }
-      });
+    let data = await postFetch("revoke-employee-access", {
+      access_id,
+    });
+    if (!data.status) {
+      setmodalErrorMessage(data.msg);
+    } else {
+      getAllEmployees();
+    }
+    setrevokeButtonLoading(false);
   };
 
   if (!manageRestaurantAccessId) return;
@@ -703,84 +658,53 @@ const ManageSubscription = ({
   const [buttonLoading, setbuttonLoading] = useState(false);
   const [latestTransaction, setlatestTransaction] = useState([]);
 
-  const getCurrentSubscriptionDetails = () => {
+  const getCurrentSubscriptionDetails = async () => {
     if (!manageSubscriptionRestId) return;
     setmainLoading(true);
-    fetch(`${SERVER_LINK}/get-current-subscription-details`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        restaurant_id: manageSubscriptionRestId,
-      }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (!data.status) {
-          setmodalErrorMessage(data.msg);
-          setmainLoading(false);
-        } else {
-          setlatestTransaction(data.latestTransaction);
-          setmainLoading(false);
-        }
-      });
+    let data = await postFetch("get-current-subscription-details", {
+      restaurant_id: manageSubscriptionRestId,
+    });
+    if (!data.status) {
+      setmodalErrorMessage(data.msg);
+    } else {
+      setlatestTransaction(data.latestTransaction);
+    }
+    setmainLoading(false);
   };
 
   useEffect(() => {
     getCurrentSubscriptionDetails();
   }, [manageSubscriptionRestId]);
 
-  const startTrial = () => {
+  const startTrial = async () => {
     if (!manageSubscriptionRestId) return;
 
     setbuttonLoading(true);
-    fetch(`${SERVER_LINK}/start-trial`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        restaurant_id: manageSubscriptionRestId,
-      }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (!data.status) {
-          setmodalErrorMessage(data.msg);
-          setbuttonLoading(false);
-        } else {
-          setlatestTransaction(data.latestTransaction);
-          findAndSwap(data.updatedRestaurantDetails);
-          setbuttonLoading(false);
-        }
-      })
-      .catch((e) => {
-        console.log(e);
-        setbuttonLoading(false);
-      });
+    let data = await postFetch("start-trial", {
+      restaurant_id: manageSubscriptionRestId,
+    });
+    if (!data.status) {
+      setmodalErrorMessage(data.msg);
+    } else {
+      setlatestTransaction(data.latestTransaction);
+      findAndSwap(data.updatedRestaurantDetails);
+    }
+    setbuttonLoading(false);
   };
 
-  const createCheckoutSession = () => {
+  const createCheckoutSession = async () => {
     if (!manageSubscriptionRestId) return;
     setbuttonLoading(true);
+    let data = await postFetch("create-checkout-session", {
+      restaurant_id: manageSubscriptionRestId,
+    });
 
-    fetch(`${SERVER_LINK}/create-checkout-session`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({
-        restaurant_id: manageSubscriptionRestId,
-      }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (!data.status) {
-          setmodalErrorMessage(data.msg);
-          setbuttonLoading(false);
-        } else {
-          setbuttonLoading(false);
-          window.location.href = data.session_url;
-        }
-      });
+    setbuttonLoading(false);
+    if (!data.status) {
+      setmodalErrorMessage(data.msg);
+    } else {
+      window.location.href = data.session_url;
+    }
   };
 
   if (!manageSubscriptionRestId) return;
@@ -842,28 +766,18 @@ const Employees = () => {
   const [employee_email_address, setemployee_email_address] = useState("");
   const [employee_username, setemployee_username] = useState("");
 
-  const getEmployees = () => {
+  const getEmployees = async () => {
     setloading(true);
-    fetch(`${SERVER_LINK}/get-employees`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        console.log(data);
-        if (!data.status) {
-          console.log(data.msg);
-          setloading(false);
-        } else {
-          setemployees(data.employees);
-          setloading(false);
-        }
-      });
+    let data = await postFetch("get-employees", {});
+    if (!data.status) {
+      console.log(data.msg);
+    } else {
+      setemployees(data.employees);
+    }
+    setloading(false);
   };
 
-  const addEmployee = () => {
+  const addEmployee = async () => {
     if (
       !employee_first_name ||
       !employee_last_name ||
@@ -883,28 +797,19 @@ const Employees = () => {
       return;
     }
     setaddEmplButtonLoading(true);
-    fetch(`${SERVER_LINK}/add-employee`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        employee_first_name,
-        employee_last_name,
-        employee_email_address: employee_email_address.toLowerCase(),
-        employee_username,
-      }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (!data.status) {
-          console.log(data.msg);
-          setaddEmplButtonLoading(false);
-        } else {
-          setaddEmplButtonLoading(false);
-          getEmployees();
-          setaddEmployeeToggle(false);
-        }
-      });
+    let data = await postFetch("add-employee", {
+      employee_first_name,
+      employee_last_name,
+      employee_email_address: employee_email_address.toLowerCase(),
+      employee_username,
+    });
+    if (!data.status) {
+      console.log(data.msg);
+    } else {
+      getEmployees();
+      setaddEmployeeToggle(false);
+    }
+    setaddEmplButtonLoading(false);
   };
 
   useEffect(() => {
@@ -1031,25 +936,17 @@ const SingleEmployee = ({ employee, getEmployees }) => {
     employee.employee_is_active
   );
 
-  const emailLoginInstructions = (employee_id) => {
+  const emailLoginInstructions = async (employee_id) => {
     if (!employee_id) return;
     setemailLoginInstrLoading(true);
-    fetch(`${SERVER_LINK}/email-login-instructions`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        employee_id,
-      }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        console.log(data);
-        setemailLoginInstrLoading(false);
-      });
+    let data = await postFetch("email-login-instructions", {
+      employee_id,
+    });
+    console.log(data.msg);
+    setemailLoginInstrLoading(false);
   };
 
-  const editEmployeeDetails = (employee_id) => {
+  const editEmployeeDetails = async (employee_id) => {
     if (
       !employee_first_name ||
       !employee_last_name ||
@@ -1059,29 +956,19 @@ const SingleEmployee = ({ employee, getEmployees }) => {
       return;
     if (!validateEmail(employee_email_address)) return;
     seteditEmployeeDetailsLoading(true);
-    fetch(`${SERVER_LINK}/edit-employee-details`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        employee_id,
-        employee_first_name,
-        employee_last_name,
-        employee_email_address: employee_email_address.toLowerCase(),
-        employee_is_active,
-      }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (!data.status) {
-          console.log(data.msg);
-          seteditEmployeeDetailsLoading(false);
-        } else {
-          seteditEmployeeDetailsLoading(false);
-
-          getEmployees();
-        }
-      });
+    let data = await postFetch("edit-employee-details", {
+      employee_id,
+      employee_first_name,
+      employee_last_name,
+      employee_email_address: employee_email_address.toLowerCase(),
+      employee_is_active,
+    });
+    if (!data.status) {
+      console.log(data.msg);
+    } else {
+      getEmployees();
+    }
+    seteditEmployeeDetailsLoading(false);
   };
 
   if (!employee.employee_id) return;
@@ -1167,31 +1054,22 @@ const PaymentActivity = () => {
   const [filterItems, setfilterItems] = useState([]);
   const [restNameFilter, setrestNameFilter] = useState("");
 
-  const getPaymentActivity = () => {
+  const getPaymentActivity = async () => {
     setloading(true);
-    fetch(`${SERVER_LINK}/get-payment-activity`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (!data.status) {
-          console.log(data.msg);
-          setloading(false);
-        } else {
-          let arrayOfFilters = [];
-          data.payments.map((payment) => {
-            if (!arrayOfFilters.includes(payment.restaurant_name)) {
-              arrayOfFilters.push(payment.restaurant_name);
-            }
-          });
-          setfilterItems(arrayOfFilters);
-          setpayments(data.payments);
-          setloading(false);
+    let data = await postFetch("get-payment-activity", {});
+    if (!data.status) {
+      console.log(data.msg);
+    } else {
+      let arrayOfFilters = [];
+      data.payments.map((payment) => {
+        if (!arrayOfFilters.includes(payment.restaurant_name)) {
+          arrayOfFilters.push(payment.restaurant_name);
         }
       });
+      setfilterItems(arrayOfFilters);
+      setpayments(data.payments);
+    }
+    setloading(false);
   };
 
   useEffect(() => {
@@ -1224,6 +1102,7 @@ const PaymentActivity = () => {
   return (
     <div>
       <h1>Payment Activity here</h1>
+      <br />
       <div className="row_space_around">
         {filterItems.map((item, index) => {
           return (
@@ -1234,6 +1113,7 @@ const PaymentActivity = () => {
         })}
         <button onClick={() => setrestNameFilter("")}>Clear Filters</button>
       </div>
+      <br />
       <table>
         <thead>
           <tr>
@@ -1278,10 +1158,4 @@ const PaymentActivity = () => {
       </table>
     </div>
   );
-};
-
-const validateEmail = (email) => {
-  const regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-
-  return regex.test(email);
 };

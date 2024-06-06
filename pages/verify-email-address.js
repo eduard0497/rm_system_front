@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/router";
-const SERVER_LINK = process.env.NEXT_PUBLIC_SERVER_LINK;
+import { postFetch } from "@/reusableFuncs/postFetch";
 
 function VerifyEmailAddress() {
   const router = useRouter();
@@ -9,21 +9,14 @@ function VerifyEmailAddress() {
   const [loading, setloading] = useState(false);
   const [message, setmessage] = useState("");
 
-  const verifyUserEmail = () => {
+  const verifyUserEmail = async () => {
     if (!token) return;
     setloading(true);
-    fetch(`${SERVER_LINK}/verify-owner-email`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        token,
-      }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        setmessage(data.msg);
-        setloading(false);
-      });
+    let data = await postFetch("verify-owner-email", {
+      token,
+    });
+    setmessage(data.msg);
+    setloading(false);
   };
 
   useEffect(() => {

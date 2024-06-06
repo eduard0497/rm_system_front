@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/router";
-const SERVER_LINK = process.env.NEXT_PUBLIC_SERVER_LINK;
+import { postFetch } from "@/reusableFuncs/postFetch";
 
 function EmployeeLogin() {
   const router = useRouter();
   const { token } = router.query;
 
-  // const [loading, setloading] = useState(false);
-  // const [message, setmessage] = useState("");
+  const [searchLoading, setsearchLoading] = useState(false);
+  const [message, setmessage] = useState("");
 
   const [username, setusername] = useState("");
   const [password, setpassword] = useState("");
@@ -17,7 +17,26 @@ function EmployeeLogin() {
   const [showPasswordInputs, setshowPasswordInputs] = useState(false);
   const [passwordExists, setpasswordExists] = useState(false);
 
-  console.log(token);
+  const searchUsername = async () => {
+    if (!token) return;
+    if (!username) {
+      setmessage("All fields are required");
+      return;
+    }
+    setmessage("");
+    setsearchLoading(true);
+    let data = await postFetch("search-employee-username", {
+      token,
+      employee_username: username,
+    });
+    if (!data.status) {
+      setmessage(data.msg);
+    } else {
+      setshowPasswordInputs(true);
+      setpasswordExists(data.password_exists);
+    }
+    setsearchLoading(false);
+  };
 
   if (!token) {
     return (
@@ -67,8 +86,15 @@ function EmployeeLogin() {
           )}
         </div>
       ) : (
-        <button>Search</button>
+        <>
+          {searchLoading ? (
+            <button>Loading...</button>
+          ) : (
+            <button onClick={searchUsername}>Search</button>
+          )}
+        </>
       )}
+      {message && <p>{message}</p>}
     </div>
   );
 }

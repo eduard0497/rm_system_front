@@ -1,9 +1,14 @@
 import React, { useState, useEffect, useContext } from "react";
 import { useRouter } from "next/router";
 import AuthContext from "./AuthContext";
+import { postFetch } from "@/reusableFuncs/postFetch";
 const SERVER_LINK = process.env.NEXT_PUBLIC_SERVER_LINK;
 
-const _routes_needed_authorization = ["/dashboard", "/payment-result"];
+const _routes_needed_authorization = [
+  "/dashboard",
+  "/payment-result",
+  "/manage-restaurants",
+];
 
 function Layout({ children }) {
   const { setIsLoggedIn, setaccount_type } = useContext(AuthContext);
@@ -20,38 +25,25 @@ function Layout({ children }) {
     }
   }, [router.pathname]);
 
-  const validateToken = () => {
-    console.log("Validating user...");
+  const validateToken = async () => {
+    // console.log("Validating user...");
     setmainLoading(true);
-    fetch(`${SERVER_LINK}/validate-token`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
-    })
-      .then((res) => res.json())
-      .then(async (data) => {
-        if (data.kick_out || data.no_decoded_user) {
-          const response = await fetch("/api/clearCookies", {
-            method: "GET",
-          });
-          setIsLoggedIn(false);
-          setaccount_type("");
-          setmainLoading(false);
-          if (_routes_needed_authorization.includes(router.pathname)) {
-            await router.push("/");
-          }
-        } else {
-          setIsLoggedIn(true);
-          setaccount_type(data.account_type);
-          setmainLoading(false);
-        }
-      })
-      .catch((e) => {
-        console.log("Error:");
-        console.log(e);
-        setmainLoading(false);
+    let data = await postFetch("validate-token", {});
+    if (data.kick_out || data.no_decoded_user) {
+      const response = await fetch("/api/clearCookies", {
+        method: "GET",
       });
+      setIsLoggedIn(false);
+      setaccount_type("");
+      setmainLoading(false);
+      if (_routes_needed_authorization.includes(router.pathname)) {
+        await router.push("/");
+      }
+    } else {
+      setIsLoggedIn(true);
+      setaccount_type(data.account_type);
+      setmainLoading(false);
+    }
   };
 
   useEffect(() => {

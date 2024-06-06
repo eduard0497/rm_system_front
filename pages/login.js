@@ -1,8 +1,9 @@
 import React, { useState, useContext } from "react";
 import { useRouter } from "next/router";
 import Modal from "@/components/Modal";
-const SERVER_LINK = process.env.NEXT_PUBLIC_SERVER_LINK;
 import AuthContext from "@/components/AuthContext";
+import { validateEmail } from "@/reusableFuncs/validateEmail";
+import { postFetch } from "@/reusableFuncs/postFetch";
 
 function Login() {
   const [toggle, settoggle] = useState(false);
@@ -26,7 +27,7 @@ const OwnerLogin = () => {
   const [owner_email_address, setowner_email_address] = useState("");
   const [owner_password, setowner_password] = useState("");
 
-  const ownerLogin = () => {
+  const ownerLogin = async () => {
     if (!owner_email_address || !owner_password) {
       setformMessage("all fields are required");
       return;
@@ -37,47 +38,34 @@ const OwnerLogin = () => {
     }
 
     setloading(true);
+    let data = await postFetch("owner-login", {
+      owner_email_address: owner_email_address.toLowerCase(),
+      owner_password,
+    });
+    if (!data.status) {
+      setformMessage(data.msg);
+      setloading(false);
+      return;
+    }
 
-    fetch(`${SERVER_LINK}/owner-login`, {
+    await fetch("/api/set-cookie", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        owner_email_address: owner_email_address.toLowerCase(),
-        owner_password,
-      }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ token: data.token }),
     })
-      .then((res) => res.json())
+      .then((responseFromSetCookie) => responseFromSetCookie.json())
       .then(async (data) => {
         if (!data.status) {
           setformMessage(data.msg);
           setloading(false);
           return;
         }
-
-        await fetch("/api/set-cookie", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ token: data.token }),
-        })
-          .then((responseFromSetCookie) => responseFromSetCookie.json())
-          .then(async (data) => {
-            if (!data.status) {
-              setformMessage(data.msg);
-              setloading(false);
-              return;
-            }
-            setloading(false);
-            setIsLoggedIn(true);
-            setaccount_type("owner");
-            await router.push("/dashboard");
-          });
-      })
-      .catch((e) => {
-        console.log("Error:");
-        console.log(e);
         setloading(false);
+        setIsLoggedIn(true);
+        setaccount_type("owner");
+        await router.push("/dashboard");
       });
   };
 
@@ -149,7 +137,7 @@ const OwnerRegister = () => {
     setowner_confirmed_password("");
   };
 
-  const registerOwner = () => {
+  const registerOwner = async () => {
     if (
       !owner_first_name ||
       !owner_last_name ||
@@ -180,31 +168,19 @@ const OwnerRegister = () => {
     }
 
     setloading(true);
+    let data = await postFetch("register-owner", {
+      owner_first_name,
+      owner_last_name,
+      owner_email_address: owner_email_address.toLowerCase(),
+      owner_password,
+    });
 
-    fetch(`${SERVER_LINK}/register-owner`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        owner_first_name,
-        owner_last_name,
-        owner_email_address: owner_email_address.toLowerCase(),
-        owner_password,
-      }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.status == 1) {
-          clearFields();
-        }
-        setmodal(true);
-        setmessage(data.msg);
-        setloading(false);
-      })
-      .catch((e) => {
-        console.log("Error:");
-        console.log(e);
-        setloading(false);
-      });
+    if (data.status == 1) {
+      clearFields();
+    }
+    setmodal(true);
+    setmessage(data.msg);
+    setloading(false);
   };
 
   const handleKeyPress = (event) => {
@@ -282,10 +258,4 @@ const OwnerRegister = () => {
       </div>
     </>
   );
-};
-
-const validateEmail = (email) => {
-  const regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-
-  return regex.test(email);
 };
