@@ -2,7 +2,6 @@ import React, { useState, useEffect, useContext } from "react";
 import { useRouter } from "next/router";
 import AuthContext from "./AuthContext";
 import { postFetch } from "@/reusableFuncs/postFetch";
-const SERVER_LINK = process.env.NEXT_PUBLIC_SERVER_LINK;
 
 const _routes_needed_authorization = [
   "/dashboard",

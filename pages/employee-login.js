@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { useRouter } from "next/router";
 import { postFetch } from "@/reusableFuncs/postFetch";
+import AuthContext from "@/components/AuthContext";
 
 function EmployeeLogin() {
+  const { setIsLoggedIn, setaccount_type } = useContext(AuthContext);
   const router = useRouter();
   const { token } = router.query;
 
@@ -11,8 +13,11 @@ function EmployeeLogin() {
 
   const [username, setusername] = useState("");
   const [password, setpassword] = useState("");
+  const [passwordLoading, setpasswordLoading] = useState(false);
+
   const [setupPassword, setsetupPassword] = useState("");
   const [confirmSetupPassword, setconfirmSetupPassword] = useState("");
+  const [setupPasswordLoading, setsetupPasswordLoading] = useState(false);
 
   const [showPasswordInputs, setshowPasswordInputs] = useState(false);
   const [passwordExists, setpasswordExists] = useState(false);
@@ -36,6 +41,93 @@ function EmployeeLogin() {
       setpasswordExists(data.password_exists);
     }
     setsearchLoading(false);
+  };
+
+  const setupPasswordAndLogin = async () => {
+    if (!token) return;
+    if (!username || !setupPassword || !confirmSetupPassword) {
+      setmessage("All fields are required");
+      return;
+    }
+    if (setupPassword.includes(" ")) {
+      setmessage("Password may not contain a space");
+      return;
+    }
+    if (setupPassword !== confirmSetupPassword) {
+      setmessage("Passwords must be the same");
+      return;
+    }
+    setmessage("");
+    setsetupPasswordLoading(true);
+    let data = await postFetch("employee-set-password", {
+      token,
+      employee_username: username,
+      employee_password: setupPassword,
+    });
+    if (!data.status) {
+      setmessage(data.msg);
+      setsetupPasswordLoading(false);
+    } else {
+      await fetch("/api/set-cookie", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ token: data.token }),
+      })
+        .then((responseFromSetCookie) => responseFromSetCookie.json())
+        .then(async (data) => {
+          if (!data.status) {
+            setmessage(data.msg);
+            setsetupPasswordLoading(false);
+            return;
+          }
+          setsetupPasswordLoading(false);
+          setIsLoggedIn(true);
+          setaccount_type("employee");
+          await router.push("/manage-restaurants");
+        });
+    }
+  };
+
+  const employeeLogin = async () => {
+    if (!token) return;
+    if (!username || !password) {
+      setmessage("All fields are required");
+      return;
+    }
+
+    setmessage("");
+    setpasswordLoading(true);
+    let data = await postFetch("employee-login", {
+      token,
+      employee_username: username,
+      employee_password: password,
+    });
+    if (!data.status) {
+      setmessage(data.msg);
+      setpasswordLoading(false);
+    } else {
+      await fetch("/api/set-cookie", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ token: data.token }),
+      })
+        .then((responseFromSetCookie) => responseFromSetCookie.json())
+        .then(async (data) => {
+          if (!data.status) {
+            setmessage(data.msg);
+            setpasswordLoading(false);
+            return;
+          }
+          setpasswordLoading(false);
+          setIsLoggedIn(true);
+          setaccount_type("employee");
+          await router.push("/manage-restaurants");
+        });
+    }
   };
 
   if (!token) {
@@ -65,7 +157,11 @@ function EmployeeLogin() {
                 value={password}
                 onChange={(e) => setpassword(e.target.value)}
               />
-              <button>Login</button>
+              {passwordLoading ? (
+                <button>Loading...</button>
+              ) : (
+                <button onClick={employeeLogin}>Login</button>
+              )}
             </>
           ) : (
             <>
@@ -81,7 +177,13 @@ function EmployeeLogin() {
                 value={confirmSetupPassword}
                 onChange={(e) => setconfirmSetupPassword(e.target.value)}
               />
-              <button>Set Password & Login</button>
+              {setupPasswordLoading ? (
+                <button>Loading</button>
+              ) : (
+                <button onClick={setupPasswordAndLogin}>
+                  Set Password & Login
+                </button>
+              )}
             </>
           )}
         </div>
